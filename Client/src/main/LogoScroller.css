@@ -1,0 +1,44 @@
+.scroller {
+    max-width: 100%;
+  }
+  
+  .scroller__inner {
+    padding-block: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2.5rem;
+  }
+  
+  .scroller[data-animated="true"] {
+    overflow: hidden;
+    -webkit-mask: linear-gradient(
+      90deg,
+      transparent,
+      white 3%,
+      white 97%,
+      transparent
+    );
+    mask: linear-gradient(90deg, transparent, white 3%, white 97%, transparent);
+  }
+  
+  .scroller[data-animated="true"] .scroller__inner {
+    width: max-content;
+    flex-wrap: nowrap;
+    animation: scroll var(--_animation-duration, 55s)
+      var(--_animation-direction, forwards) linear infinite;
+      --_animation-duration: 20s;
+  }
+  
+  @keyframes scroll {
+    to {
+      transform: translate(calc(-50% - 0.5rem));
+    }
+  }
+
+  img {
+    max-width: 110px;  /* Constrain width */
+    object-fit: contain; /* Preserve aspect ratio within the specified size */
+    filter: grayscale(0.3);
+    aspect-ratio: 3/2;
+    mix-blend-mode: color-burn;
+}
