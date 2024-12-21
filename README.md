@@ -1,10 +1,13 @@
 # Second Hand Car Marketplace and Renting System
 
+#Home
 ![home](https://github.com/user-attachments/assets/fa58a27d-2154-4b79-9d20-52fe77339b6e)
 
+#Car Explore
 ![car-explore](https://github.com/user-attachments/assets/397aaa76-3b4b-44b6-bcec-292e6757d687)
 
-![care-details](https://github.com/user-attachments/assets/b7862c0c-0595-4a70-82da-0f52861a272d)
+#Car Details
+![car-details](https://github.com/user-attachments/assets/b7862c0c-0595-4a70-82da-0f52861a272d)
 
 ## Overview
 
