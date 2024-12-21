@@ -35,7 +35,7 @@
     }
   }
 
-  img {
+  .img {
     max-width: 110px;  /* Constrain width */
     object-fit: contain; /* Preserve aspect ratio within the specified size */
     filter: grayscale(0.3);

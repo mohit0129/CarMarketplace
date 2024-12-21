@@ -62,7 +62,7 @@ export default function PrivacyPolicy({ isOpen, onClose }) {
               <p>We may update this Privacy Policy periodically. We will notify you of any significant changes by posting the new policy on our website.</p>
 
               <h4 className="text-lg font-semibold mt-4">9. Contact Us</h4>
-              <p>For any questions regarding this Privacy Policy, please contact us at [contact email or phone number].</p>
+              <p>For any questions regarding this Privacy Policy, please contact us at <a href="mailto:contact@carconnect.com"  className="text-black font-semibold hover:underline">contact@carconnect.com</a>.</p>
             </div>
           </div>
         </div>

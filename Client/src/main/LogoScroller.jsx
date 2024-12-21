@@ -1,33 +1,45 @@
-// import React, { useEffect, useRef, useState } from 'react';
-// import './LogoScroller.css';
+import React, { useEffect, useRef, useState } from 'react';
+import './LogoScroller.css';
 
-// function LogoScroller() {
-//   const [currentIndex, setCurrentIndex] = useState(0);
-//   const logoScrollerRef = useRef(null);
+function LogoScroller() {
 
-//   useEffect(() => {
-//     const intervalId = setInterval(() => {
-//       setCurrentIndex((prevIndex) => (prevIndex + 1) % 6); // Adjust the number 6 to match the number of logos
-//     }, 5000); // Adjust the interval time as needed
+    const scrollerRef = useRef(null);
 
-//     return () => clearInterval(intervalId);
-//   }, []);
+    const importAll = (requireContext) => requireContext.keys().map(requireContext);
+    const images = importAll(require.context('./logos', false, /\.(png|jpe?g|svg)$/));
+  
+    useEffect(() => {
+      const addAnimation = () => {
+        if (scrollerRef.current) {
+          scrollerRef.current.dataset.animated = true;
+  
+          const scrollerInner = scrollerRef.current.querySelector('.scroller__inner');
+          const scrollerContent = Array.from(scrollerInner.children);
+  
+          scrollerContent.forEach((item) => {
+            const duplicatedItem = item.cloneNode(true);
+            duplicatedItem.setAttribute('aria-hidden', true);
+            scrollerInner.appendChild(duplicatedItem);
+          });
+        }
+      };
+  
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        addAnimation();
+      }
+    }, []);
 
-//   return (
-//     <div className="logo-scroller" ref={logoScrollerRef}>
-//       {Array.from({ length: 6 }).map((_, index) => (
-//         <img
-//           key={index}
-//           src={`logo${index + 1}.png`}
-//           alt={`Logo ${index + 1}`}
-//           style={{
-//             transform: `translateX(${currentIndex === index ? 0 : 100}%)`,
-//             transition: 'transform 1s ease-in-out',
-//           }}
-//         />
-//       ))}
-//     </div>
-//   );
-// }
+  return (
+    <section className="logo_scroller dark:bg-gray-900">
+    <div className="scroller" ref={scrollerRef}>
+      <ul className="tag-list scroller__inner">
+        {images.map((image, index) => (
+          <img key={index} src={image} alt={`Logo ${index + 1}`} className='img'/>
+        ))}
+      </ul>
+    </div>
+  </section>
+  );
+}
 
-// export default LogoScroller;
+export default LogoScroller;

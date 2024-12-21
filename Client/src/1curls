@@ -1,0 +1,267 @@
+# API Testing Curl Commands
+
+## User Authentication & Management
+
+### 1. User Registration
+```bash
+curl -X POST http://localhost:3001/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test User",
+    "email": "test@example.com",
+    "mobileno": "1234567890",
+    "password": "testpassword123"
+  }'
+```
+
+### 2. User Login
+```bash
+curl -X POST http://localhost:3001/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "testpassword123"
+  }'
+```
+3. User Delete
+curl -X DELETE http://localhost:3001/api/deleteUser/673d54d2653776b47c455eec \
+  -H "Content-Type: application/json"
+
+
+### 3. Change Password
+```bash
+curl -X POST http://localhost:3001/change-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "user_id_here",
+    "opass": "oldpassword",
+    "npass": "newpassword"
+  }'
+```
+
+### 4. Password Reset Request
+```bash
+curl -X POST http://localhost:3001/password-reset \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com"
+  }'
+```
+
+### 5. Get User Profile
+```bash
+curl -X GET "http://localhost:3001/get-profile?id=user_id_here" \
+  -H "Content-Type: application/json"
+```
+
+### 6. Update Profile
+```bash
+curl -X POST http://localhost:3001/update-profile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "user_id_here",
+    "name": "Updated Name",
+    "email": "updated@example.com",
+    "mobile": "9876543210"
+  }'
+```
+
+### 7. Get All Users (Admin)
+```bash
+curl -X GET http://localhost:3001/get-users \
+  -H "Content-Type: application/json"
+```
+
+### 8. Suspend User (Admin)
+```bash
+curl -X POST http://localhost:3001/suspend-user \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "user_id_here"
+  }'
+```
+
+## Car Listings
+
+### 1. Create New Car Listing
+```bash
+curl -X POST http://localhost:3001/api/listings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 1,
+    "owner": 1,
+    "RentSell": "Rent",
+    "make": "Toyota",
+    "model": "Camry",
+    "year": 2020,
+    "mileage": 30000,
+    "price": 25000,
+    "location": "New York",
+    "condition": "Excellent",
+    "engine": "2.5L 4-cylinder",
+    "transmission": "Automatic",
+    "fuelType": "Gasoline",
+    "seatingCapacity": 5,
+    "interiorColor": "Black",
+    "exteriorColor": "Silver",
+    "carType": "Sedan",
+    "vin": "1HGCM82633A123456",
+    "images": ["image_url_1", "image_url_2"]
+  }'
+```
+
+### 2. Get All Listings
+```bash
+curl -X GET http://localhost:3001/api/listings/listings \
+  -H "Content-Type: application/json"
+```
+
+### 3. Get Specific Listing
+```bash
+curl -X GET http://localhost:3001/api/listings/listings/listing_id_here \
+  -H "Content-Type: application/json"
+```
+
+### 4. Update Listing
+```bash
+curl -X PUT http://localhost:3001/api/listings/listing_id_here \
+  -H "Content-Type: application/json" \
+  -d '{
+    "price": 26000,
+    "condition": "Good",
+    "mileage": 32000
+  }'
+```
+
+### 5. Delete Listing
+```bash
+curl -X DELETE http://localhost:3001/api/listings/listing_id_here \
+  -H "Content-Type: application/json"
+```
+
+## Bookings
+
+### 1. Create New Booking
+```bash
+curl -X POST http://localhost:3001/api/booking \
+  -H "Content-Type: application/json" \
+  -d '{
+    "listing_id": 1,
+    "renter_id": 1,
+    "booking_start_date": "2024-03-20",
+    "booking_end_date": "2024-03-25",
+    "total_price": 500
+  }'
+```
+
+### 2. Get All Bookings
+```bash
+curl -X GET http://localhost:3001/api/booking \
+  -H "Content-Type: application/json"
+```
+
+### 3. Get Specific Booking
+```bash
+curl -X GET http://localhost:3001/api/booking/booking_id_here \
+  -H "Content-Type: application/json"
+```
+
+### 4. Update Booking
+```bash
+curl -X PUT http://localhost:3001/api/booking/booking_id_here \
+  -H "Content-Type: application/json" \
+  -d '{
+    "booking_status": "confirmed",
+    "payment_status": "paid"
+  }'
+```
+
+### 5. Delete Booking
+```bash
+curl -X DELETE http://localhost:3001/api/booking/booking_id_here \
+  -H "Content-Type: application/json"
+```
+
+## Payments
+
+### 1. Create Payment
+```bash
+curl -X POST http://localhost:3001/payments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 1,
+    "transaction_id": "TR123456",
+    "amount": 500,
+    "payment_method": "credit_card",
+    "payment_status": "successful"
+  }'
+```
+
+### 2. Get All Payments
+```bash
+curl -X GET http://localhost:3001/payments \
+  -H "Content-Type: application/json"
+```
+
+### 3. Get Specific Payment
+```bash
+curl -X GET http://localhost:3001/payments/payment_id_here \
+  -H "Content-Type: application/json"
+```
+
+### 4. Update Payment
+```bash
+curl -X PUT http://localhost:3001/payments/payment_id_here \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payment_status": "refunded"
+  }'
+```
+
+### 5. Delete Payment
+```bash
+curl -X DELETE http://localhost:3001/payments/payment_id_here \
+  -H "Content-Type: application/json"
+```
+
+## Admin
+
+### 1. Admin Login
+```bash
+curl -X POST http://localhost:3001/api/admin/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "adminpassword"
+  }'
+```
+
+
+
+
+
+curl -X PUT "http://localhost:3001/api/listings/uplistings/214" \
+  -H "Content-Type: multipart/form-data" \
+  -F "listing_status=active" \
+  -F "user_id=67890" \
+  -F "owner=123" \
+  -F "RentSell=Sell" \
+  -F "make=Toyota" \
+  -F "model=Corolla" \
+  -F "year=2020" \
+  -F "mileage=5000" \
+  -F "price=20000" \
+  -F "location=New York" \
+  -F "condition=Excellent" \
+  -F "certified=true" \
+  -F "engine=V6" \
+  -F "transmission=Automatic" \
+  -F "fuelType=Gasoline" \
+  -F "seatingCapacity=5" \
+  -F "interiorColor=Black" \
+  -F "exteriorColor=Blue" \
+  -F "carType=SUV" \
+  -F "vin=1234ABCD5678EFGH" \
+  -F "description=Great car with low mileage" \
+  -F "images=@/path/to/your/image1.jpg" \
+  -F "images=@/path/to/your/image2.jpg"

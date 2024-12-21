@@ -1,0 +1,50 @@
+.background-images-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.background-images {
+  display: flex;
+  width: 300%; /* Ensures all 3 images can be side by side */
+  height: 100%;
+  animation: slideBackground 15s infinite linear;
+}
+
+.image-slide {
+  width: calc(100% / 3); /* Each image takes up 1/3 of the container */
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.image-slide:nth-child(1) {
+  background-image: url('./Banner_images/banner1.jpg');
+  background-color: rgb(59, 59, 59); /* Debugging: adds a color if image fails to load */
+}
+
+.image-slide:nth-child(2) {
+  background-image: url('./Banner_images/banner2.jpg');
+  background-color: green; /* Debugging: adds a color if image fails to load */
+}
+
+.image-slide:nth-child(3) {
+  background-image: url('./Banner_images/banner3.jpg');
+  background-color: blue; /* Debugging: adds a color if image fails to load */
+}
+
+@keyframes slideBackground {
+  0%, 33.33% {
+      transform: translateX(0); /* First image */
+  }
+  33.34%, 66.66% {
+      transform: translateX(-33.33%); /* Second image */
+  }
+  66.67%, 100% {
+      transform: translateX(-66.66%); /* Third image */
+}
+}

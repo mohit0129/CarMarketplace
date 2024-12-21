@@ -1,231 +1,691 @@
-'use client'
+import { useState, useEffect } from 'react'
+import { ArrowRight, Camera, Loader2 } from 'lucide-react'
+import axios from 'axios';
+import UserAuth from '../auth/UserAuth';
+import API_BASE_URL from '../config/apiConfig';
 
-import { useState } from 'react'
-import { ArrowRight, Camera, Car, Check, ChevronDown, Facebook, User, Info, Mail, MessageSquare, Phone, Share2, Star, Upload } from "lucide-react"
+function SellCar() {
+  const [step, setStep] = useState(1);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imageUrls, setImageUrls] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-export default function SellCar() {
-  const [step, setStep] = useState(1)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const storedUserId = localStorage.getItem('id');
+  // useEffect(() => {
+    
 
-  const nextStep = () => setStep(step + 1)
-  const prevStep = () => setStep(step - 1)
+  //   if (storedUserId) {
+  //     setFormData(prevFormData => ({
+  //       ...prevFormData,
+  //       user_id: storedUserId  // Keep it as a string
+  //     }));
+  //   } else {
+  //     setError('User ID not found. Please log in again.');
+  //   }
+  // }, []);
+
+  const userId = localStorage.getItem('id');
+
+  const [formData, setFormData] = useState({
+    user_id: String(userId),
+    listing_status: 'requested',
+    owner: '',
+    RentSell: '',
+    make: '',
+    model: '',
+    year: '',
+    mileage: '',
+    price: '',
+    location: '',
+    condition: '',
+    filename: '',
+    url: '',
+    engine: '',
+    transmission: '',
+    fuelType: '',
+    seatingCapacity: '',
+    interiorColor: '',
+    exteriorColor: '',
+    carType: '',
+    vin: '',
+    serviceHistory: {
+      recentServicing: false,
+      noAccidentHistory: false,
+      modifications: false
+    },
+    extraFeatures: {
+      gps: false,
+      sunroof: false,
+      leatherSeats: false,
+      backupCamera: false
+    },
+    certificationReport: null,
+    description: '',
+    modificationDetails: '',
+    contactMethods: [],
+    availability: '',
+    responseTime: ''
+  });
+
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 5) {
+      setError('Maximum 5 images allowed');
+      return;
+    }
+
+    setSelectedImages(files);
+    const urls = files.map(file => URL.createObjectURL(file));
+    setImageUrls(urls);
+  };
+
+  const removeImage = (index) => {
+    const newImages = [...selectedImages];
+    const newUrls = [...imageUrls];
+
+    URL.revokeObjectURL(newUrls[index]);
+    newImages.splice(index, 1);
+    newUrls.splice(index, 1);
+
+    setSelectedImages(newImages);
+    setImageUrls(newUrls);
+  };
+
+  const handleInputChange = (e) => {
+    const { id, value, type, checked } = e.target;
+
+    const safeValue = value === null ? '' : value;
+
+    if (id.includes('.')) {
+      const [parent, child] = id.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: type === 'checkbox' ? checked : value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [id]: type === 'checkbox' ? checked : value
+      }));
+    }
+  };
+
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   setIsSubmitting(true);
+  //   setError('');
+
+  //   try {
+  //     const formDataToSend = new FormData();
+
+  //     Object.keys(formData).forEach(key => {
+  //       if (typeof formData[key] === 'object' && formData[key] !== null) {
+  //         formDataToSend.append(key, JSON.stringify(formData[key]));
+  //       } else {
+  //         formDataToSend.append(key, formData[key]);
+  //       }
+  //     });
+
+  //     selectedImages.forEach((image, index) => {
+  //       formDataToSend.append('images', image);
+  //     });
+
+  //     const response = await fetch('${API_BASE_URL}/api/listings/listings', {
+  //       method: 'POST',
+  //       body: formDataToSend,
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error('Failed to create listing');
+  //     }
+
+  //     const data = await response.json();
+  //     console.log('Listing created:', data);
+
+  //     alert('Your car listing has been successfully created!');
+
+  //   } catch (err) {
+  //     setError(err.message || 'An error occurred while creating the listing');
+  //     console.error('Submission error:', err);
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      // Validate user ID before submission
+      // if (!formData.user_id) {
+      //   throw new Error('User ID is missing. Please log in again.');
+      // }
+
+      const formDataToSend = new FormData();
+
+      Object.keys(formData).forEach(key => {
+        if (typeof formData[key] === 'object' && formData[key] !== null) {
+          formDataToSend.append(key, JSON.stringify(formData[key]));
+        } else {
+          formDataToSend.append(key, formData[key]);
+        }
+      });
+
+      selectedImages.forEach((image, index) => {
+        formDataToSend.append('images', image);
+      });
+
+      const response = await fetch(`${API_BASE_URL}/api/listings/listings`, {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create listing');
+      }
+
+      const data = await response.json();
+      console.log('Listing created:', data);
+
+      alert('Your car listing request has been successfully processed!');
+
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating the listing');
+      console.error('Submission error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const nextStep = () => {
+    setStep(step + 1);
+  };
+
+  const prevStep = () => setStep(step - 1);
+
+  const validateStep = (currentStep) => {
+    // switch (currentStep) {
+    //   case 1:
+    //     if (!formData.owner || !formData.RentSell || !formData.make ||
+    //       !formData.model || !formData.year || !formData.mileage ||
+    //       !formData.price || !formData.location) {
+    //       setError('Please fill in all required fields');
+    //       return false;
+    //     }
+    //     break;
+    //   case 2:
+    //     if (!formData.engine || !formData.transmission || !formData.fuelType ||
+    //       !formData.seatingCapacity || !formData.exteriorColor ||
+    //       !formData.interiorColor || !formData.carType ||
+    //       !formData.condition) {
+    //       setError('Please fill in all required fields');
+    //       return false;
+    //     }
+    //     break;
+    //   case 4:
+    //     if (selectedImages.length === 0) {
+    //       setError('Please upload at least one image');
+    //       return false;
+    //     }
+    //     break;
+    //   default:
+    //     setError('');
+    //     return true;
+    // }
+    setError('');
+    return true;
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
+      <header className="bg-white dark:bg-gray-800 shadow transition-colors duration-200">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-800">Sell Your Car Hassle-Free</h1>
-          <p className="mt-2 text-gray-600">Reach thousands of potential buyers with our quick and easy listing process</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Sell Your Car Hassle-Free</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Reach thousands of potential buyers with our quick and easy listing process</p>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Selling Process Summary */}
         <div className="flex justify-between mb-8">
-          {['List Your Car', 'Get Contacted', 'Sell with Confidence'].map((step, index) => (
+          <p className='dark:text-white font-medium text-xl'>List Your Car</p>
+          <p className='dark:text-white font-medium text-xl'>Get Contacted</p>
+          <p className='dark:text-white font-medium text-xl'>Sell with Confidence</p>
+        </div>
+
+        <div className="flex justify-between mb-8">
+          {['Basic Information', 'Car Condition and Specifications', 'Additional Features', 'Images upload'].map((stepTitle, index) => (
             <div key={index} className="flex items-center">
-              <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${index + 1 <= step ? 'bg-black text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                } transition-colors duration-200`}>
                 {index + 1}
               </div>
-              <span className="ml-2">{step}</span>
-              {index < 2 && <ArrowRight className="mx-4" />}
+              <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">{stepTitle}</span>
+              {index < 3 && <ArrowRight className="mx-4 text-gray-400 dark:text-gray-600" />}
             </div>
           ))}
         </div>
 
-        {/* Login or Account Creation Prompt */}
-        {!isLoggedIn && (
-          <div className="bg-white p-6 rounded-lg shadow mb-8">
-            <h2 className="text-xl font-semibold mb-4">Sign In or Sign Up to List Your Car</h2>
-            <div className="flex space-x-4">
-              <button className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                <User className="w-5 h-5 mr-2" />
-                Sign in with Google
-              </button>
-              <button className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                <Facebook className="w-5 h-5 mr-2" />
-                Sign in with Facebook
-              </button>
-              <button className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                <Mail className="w-5 h-5 mr-2" />
-                Sign in with Email
-              </button>
-            </div>
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-md transition-colors duration-200">
+            {error}
           </div>
         )}
 
-        {/* Car Details Form */}
-        <form className="bg-white p-6 rounded-lg shadow">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-all duration-300">
+          {/* Step 1: Basic Information */}
           {step === 1 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Step 1: Basic Information</h2>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Step 1: Basic Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="make" className="block text-sm font-medium text-gray-700">Car Make</label>
-                  <select id="make" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <option>Select Make</option>
-                    <option>Toyota</option>
-                    <option>Ford</option>
-                    <option>Honda</option>
+                  <label htmlFor="owner" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Owner</label>
+                  <input
+                    type="number"
+                    id="owner"
+                    value={formData.owner}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter Owners"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="RentSell" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Rent or Sell</label>
+                  <select
+                    id="RentSell"
+                    value={formData.RentSell}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                  >
+                    <option value="">Select</option>
+                    <option value="Sell">Sell</option>
+                    <option value="Rent">Rent</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="model" className="block text-sm font-medium text-gray-700">Car Model</label>
-                  <select id="model" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <option>Select Model</option>
-                  </select>
+                  <label htmlFor="make" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Car Make</label>
+                  <input
+                    type="text"
+                    id="make"
+                    value={formData.make}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter manufacturer"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="year" className="block text-sm font-medium text-gray-700">Year of Manufacture</label>
-                  <input type="number" id="year" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter year" />
+                  <label htmlFor="model" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Car Model</label>
+                  <input
+                    type="text"
+                    id="model"
+                    value={formData.model}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter model"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="mileage" className="block text-sm font-medium text-gray-700">Mileage</label>
-                  <input type="number" id="mileage" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter mileage" />
+                  <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Year of Manufacture</label>
+                  <input
+                    type="number"
+                    id="year"
+                    value={formData.year}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter year"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price</label>
-                  <input type="number" id="price" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter price" />
+                  <label htmlFor="mileage" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mileage</label>
+                  <input
+                    type="number"
+                    id="mileage"
+                    value={formData.mileage}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter mileage"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">Location</label>
-                  <input type="text" id="location" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="City or ZIP code" />
+                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Price</label>
+                  <input
+                    type="number"
+                    id="price"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter price"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
+                  <input
+                    type="text"
+                    id="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="City or ZIP code"
+                  />
                 </div>
               </div>
             </div>
           )}
 
+          {/* Step 2: Car Condition and Specifications */}
           {step === 2 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Step 2: Car Condition and Specifications</h2>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Step 2: Car Condition and Specifications</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="transmission" className="block text-sm font-medium text-gray-700">Transmission</label>
-                  <select id="transmission" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <option>Automatic</option>
-                    <option>Manual</option>
+                  <label htmlFor="engine" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Engine</label>
+                  <input
+                    type="text"
+                    id="engine"
+                    value={formData.engine}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter Engine Type"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="transmission" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Transmission</label>
+                  <select
+                    id="transmission"
+                    value={formData.transmission}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                  >
+                    <option value="">Select Transmission</option>
+                    <option value="automatic">Automatic</option>
+                    <option value="manual">Manual</option>
+                    <option value="cvt">CVT</option>
+                    <option value="semi-automatic">Semi-Automatic</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="fuel-type" className="block text-sm font-medium text-gray-700">Fuel Type</label>
-                  <select id="fuel-type" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <option>Petrol</option>
-                    <option>Diesel</option>
-                    <option>Electric</option>
-                    <option>Hybrid</option>
+                  <label htmlFor="fuelType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fuel Type</label>
+                  <select
+                    id="fuelType"
+                    value={formData.fuelType}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                  >
+                    <option value="">Select Fuel Type</option>
+                    <option value="petrol">Petrol</option>
+                    <option value="diesel">Diesel</option>
+                    <option value="electric">Electric</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="cng">CNG</option>
+                    <option value="lpg">LPG</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="exterior-color" className="block text-sm font-medium text-gray-700">Exterior Color</label>
-                  <input type="text" id="exterior-color" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter color" />
+                  <label htmlFor="seatingCapacity" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Seating Capacity</label>
+                  <input
+                    type="number"
+                    id="seatingCapacity"
+                    value={formData.seatingCapacity}
+                    onChange={handleInputChange}
+                    min="2"
+                    max="15"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter Seating Capacity"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="interior-color" className="block text-sm font-medium text-gray-700">Interior Color</label>
-                  <input type="text" id="interior-color" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter color" />
+                  <label htmlFor="exteriorColor" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Exterior Color</label>
+                  <input
+                    type="text"
+                    id="exteriorColor"
+                    value={formData.exteriorColor}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter exterior color"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="car-type" className="block text-sm font-medium text-gray-700">Car Type</label>
-                  <select id="car-type" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <option>Sedan</option>
-                    <option>SUV</option>
-                    <option>Hatchback</option>
-                    <option>Truck</option>
+                  <label htmlFor="interiorColor" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Interior Color</label>
+                  <input
+                    type="text"
+                    id="interiorColor"
+                    value={formData.interiorColor}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter interior color"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="carType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Car Type</label>
+                  <select
+                    id="carType"
+                    value={formData.carType}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                  >
+                    <option value="">Select Car Type</option>
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                    <option value="hatchback">Hatchback</option>
+                    <option value="truck">Truck</option>
+                    <option value="coupe">Coupe</option>
+                    <option value="wagon">Wagon</option>
+                    <option value="van">Van</option>
+                    <option value="convertible">Convertible</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="vin" className="block text-sm font-medium text-gray-700">VIN (Optional)</label>
-                  <input type="text" id="vin" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter VIN" />
+                  <label htmlFor="vin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    VIN <span className="text-gray-500 dark:text-gray-400 text-sm">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="vin"
+                    value={formData.vin}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Enter VIN number"
+                  />
                 </div>
               </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">Vehicle Condition</label>
-                <div className="mt-2 flex space-x-4">
-                  {['Excellent', 'Good', 'Fair'].map((condition) => (
-                    <label key={condition} className="inline-flex items-center">
-                      <input type="radio" className="form-radio" name="condition" value={condition} />
-                      <span className="ml-2">{condition}</span>
-                    </label>
-                  ))}
+
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Vehicle Condition</label>
+                <div className="mt-2">
+                  <select
+                    name="condition"
+                    id="condition"
+                    value={formData.condition || ''}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                  >
+                    <option value="">Select Condition</option>
+                    <option value="Excellent">Excellent</option>
+                    <option value="Good">Good</option>
+                    <option value="Fair">Fair</option>
+                  </select>
                 </div>
               </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">Service and Maintenance</label>
-                <div className="mt-2 space-y-2">
+
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Service History</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="inline-flex items-center">
-                    <input type="checkbox" className="form-checkbox" />
-                    <span className="ml-2">Recent servicing</span>
+                    <input
+                      type="checkbox"
+                      id="serviceHistory.recentServicing"
+                      checked={formData.serviceHistory.recentServicing}
+                      onChange={handleInputChange}
+                      className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
+                    />
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">Recent servicing</span>
                   </label>
                   <label className="inline-flex items-center">
-                    <input type="checkbox" className="form-checkbox" />
-                    <span className="ml-2">No accident history</span>
+                    <input
+                      type="checkbox"
+                      id="serviceHistory.noAccidentHistory"
+                      checked={formData.serviceHistory.noAccidentHistory}
+                      onChange={handleInputChange}
+                      className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
+                    />
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">No accident history</span>
                   </label>
                   <label className="inline-flex items-center">
-                    <input type="checkbox" className="form-checkbox" />
-                    <span className="ml-2">Modifications</span>
+                    <input
+                      type="checkbox"
+                      id="serviceHistory.modifications"
+                      checked={formData.serviceHistory.modifications}
+                      onChange={handleInputChange}
+                      className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
+                    />
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">Modifications</span>
                   </label>
                 </div>
               </div>
+
+              {formData.serviceHistory.modifications && (
+                <div className="mt-4">
+                  <label htmlFor="modificationDetails" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Modification Details
+                  </label>
+                  <textarea
+                    id="modificationDetails"
+                    value={formData.modificationDetails || ''}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                    placeholder="Please describe any modifications made to the vehicle"
+                  />
+                </div>
+              )}
             </div>
           )}
 
+          {/* Step 3: Additional Features and Highlights */}
           {step === 3 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Step 3: Additional Features and Highlights</h2>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Step 3: Additional Features and Highlights</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Extra Features</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Extra Features</label>
                   <div className="mt-2 space-y-2">
-                    {['GPS', 'Sunroof', 'Leather seats', 'Backup camera'].map((feature) => (
-                      <label key={feature} className="inline-flex items-center">
-                        <input type="checkbox" className="form-checkbox" />
-                        <span className="ml-2">{feature}</span>
+                    {[
+                      { key: 'gps', label: 'GPS' },
+                      { key: 'sunroof', label: 'Sunroof' },
+                      { key: 'leatherSeats', label: 'Leather seats' },
+                      { key: 'backupCamera', label: 'Backup camera' }
+                    ].map((feature) => (
+                      <label key={feature.key} className="inline-flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`extraFeatures.${feature.key}`}
+                          checked={formData.extraFeatures[feature.key]}
+                          onChange={handleInputChange}
+                          className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
+                        />
+                        <span className="ml-2 text-gray-700 dark:text-gray-300">{feature.label}</span>
                       </label>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="certification" className="block text-sm font-medium text-gray-700">Certification/Inspection Report</label>
-                  <input type="file" id="certification" className="mt-1 block w-full" />
+                  <label htmlFor="certification" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Certification/Inspection Report</label>
+                  <input
+                    type="file"
+                    id="certification"
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100
+                    dark:file:bg-gray-700 dark:file:text-gray-300
+                    dark:hover:file:bg-gray-600"
+                  />
                 </div>
               </div>
               <div className="mt-4">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-                <textarea id="description" rows={4} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Describe the car's condition, any unique features, or recent upgrades"></textarea>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors duration-200"
+                  placeholder="Describe the car's condition, any unique features, or recent upgrades"
+                ></textarea>
               </div>
             </div>
           )}
 
+          {/* Step 4: Photo Upload */}
           {step === 4 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Step 4: Photo and Video Upload</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Photo Upload</label>
-                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div className="space-y-1 text-center">
-                      <Camera className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="flex text-sm text-gray-600">
-                        <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                          <span>Upload files</span>
-                          <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple />
-                        </label>
-                        <p className="pl-1">or drag and drop</p>
-                      </div>
-                      <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                    </div>
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Step 4: Photo Upload</h2>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md">
+                <div className="space-y-1 text-center">
+                  <Camera className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="flex text-sm text-gray-600 dark:text-gray-400">
+                    <label
+                      htmlFor="file-upload"
+                      className="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 transition-colors duration-200"
+                    >
+                      <span>Upload files</span>
+                      <input
+                        id="file-upload"
+                        name="file-upload"
+                        type="file"
+                        className="sr-only"
+                        onChange={handleImageSelect}
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        multiple
+                        maxLength={5}
+                      />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
                   </div>
-                </div>
-                <div>
-                  <label htmlFor="video-link" className="block text-sm font-medium text-gray-700">Video Link</label>
-                  <input type="url" id="video-link" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter video URL" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF up to 10MB (Max 5 images)</p>
                 </div>
               </div>
+
+              {imageUrls.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {imageUrls.map((url, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors duration-200"
+                        aria-label="Remove image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="mt-4">
-                <h3 className="text-lg font-medium text-gray-700">Image Tips and Best Practices</h3>
-                <ul className="mt-2 list-disc list-inside text-sm text-gray-600">
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
+                  Image Tips and Best Practices
+                </h3>
+                <ul className="mt-2 list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
                   <li>Use natural light for better quality</li>
                   <li>Take photos from multiple angles (front, side, interior)</li>
-                  
                   <li>Include close-ups of any special features</li>
                   <li>Avoid using filters</li>
                 </ul>
@@ -233,127 +693,52 @@ export default function SellCar() {
             </div>
           )}
 
-          {step === 5 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Step 5: Contact Preferences and Pricing</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Preferred Contact Method</label>
-                  <div className="mt-2 space-x-4">
-                    {['Phone', 'Email', 'Platform Messaging'].map((method) => (
-                      <label key={method} className="inline-flex items-center">
-                        <input type="checkbox" className="form-checkbox" />
-                        <span className="ml-2">{method}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="availability" className="block text-sm font-medium text-gray-700">Availability for Calls</label>
-                  <input type="text" id="availability" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="e.g., Weekdays 9AM-5PM" />
-                </div>
-                <div>
-                  <label htmlFor="response-time" className="block text-sm font-medium text-gray-700">Estimated Response Time</label>
-                  <select id="response-time" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <option>Within 24 hours</option>
-                    <option>1-2 days</option>
-                    <option>3-5 days</option>
-                  </select>
-                </div>
-              </div>
-              <div className="mt-6">
-                <h3 className="text-lg font-medium text-gray-700">Pricing Suggestions</h3>
-                <div className="mt-2 p-4 bg-gray-100 rounded-md">
-                  <p className="text-sm text-gray-600">Based on your car's details, we suggest a price range of:</p>
-                  <p className="text-lg font-semibold mt-1">$15,000 - $18,000</p>
-                  <p className="text-xs text-gray-500 mt-1">This is an AI-driven suggestion based on current market trends.</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="mt-8 flex justify-between">
             {step > 1 && (
-              <button type="button" onClick={prevStep} className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              <button
+                type="button"
+                onClick={prevStep}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                disabled={isSubmitting}
+              >
                 Previous
               </button>
             )}
-            {step < 5 ? (
-              <button type="button" onClick={nextStep} className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800">
+            {step < 4 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (validateStep(step)) {
+                    nextStep();
+                  }
+                }}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                disabled={isSubmitting}
+              >
                 Next
               </button>
-            ) : (
-              <button type="submit" className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800">
-                List My Car
+            )}
+            {step === 4 && (
+              <button
+                type="submit"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="animate-spin inline-block mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  'List My Car'
+                )}
               </button>
             )}
           </div>
         </form>
-
-        {/* Success Message and Next Steps (shown after form submission) */}
-        <div className="mt-8 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Success!</strong>
-          <span className="block sm:inline"> Your car listing is now live.</span>
-          <div className="mt-2">
-            <button className="mr-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
-              Manage Listing
-            </button>
-            <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-              View Inquiries
-            </button>
-          </div>
-        </div>
-
-        {/* Seller Dashboard */}
-        <div className="mt-8 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Seller Dashboard</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-100 p-4 rounded-md">
-              <h3 className="font-medium">Listing Management</h3>
-              <ul className="mt-2 space-y-1">
-                <li><a href="#" className="text-blue-600 hover:underline">Edit Listing</a></li>
-                <li><a href="#" className="text-blue-600 hover:underline">Pause Listing</a></li>
-                <li><a href="#" className="text-blue-600 hover:underline">Delete Listing</a></li>
-              </ul>
-            </div>
-            <div className="bg-gray-100 p-4 rounded-md">
-              <h3 className="font-medium">Inquiries and Messages</h3>
-              <p className="mt-2 text-sm text-gray-600">You have 3 new messages</p>
-              <button className="mt-2 text-blue-600 hover:underline">View All</button>
-            </div>
-            <div className="bg-gray-100 p-4 rounded-md">
-              <h3 className="font-medium">Listing Analytics</h3>
-              <ul className="mt-2 space-y-1 text-sm">
-                <li>Views: 245</li>
-                <li>Inquiries: 12</li>
-                <li>Favorites: 8</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Features */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <MessageSquare className="h-6 w-6 text-blue-500 mb-2" />
-            <h3 className="font-medium">Customer Support</h3>
-            <p className="mt-1 text-sm text-gray-600">Need help? Chat with our support team.</p>
-            <button className="mt-2 text-blue-600 hover:underline">Start Chat</button>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <Info className="h-6 w-6 text-green-500 mb-2" />
-            <h3 className="font-medium">FAQs & Guides</h3>
-            <p className="mt-1 text-sm text-gray-600">Find answers to common questions.</p>
-            <button className="mt-2 text-blue-600 hover:underline">View FAQs</button>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <Star className="h-6 w-6 text-yellow-500 mb-2" />
-            <h3 className="font-medium">Trust & Safety</h3>
-            <p className="mt-1 text-sm text-gray-600">Learn about our seller protection policies.</p>
-            <button className="mt-2 text-blue-600 hover:underline">Read More</button>
-          </div>
-        </div>
       </main>
     </div>
-  )
+  );
 }
+
+export default UserAuth(SellCar);

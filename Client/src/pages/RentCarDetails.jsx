@@ -1,422 +1,491 @@
-'use client'
-
-import { useState } from 'react'
-import { ArrowLeft, ArrowRight, Calendar, Car, ChevronRight, Clock, DollarSign, Facebook, Heart, Info, MapPin, MessageSquare, Phone, Share2, Star, Twitter } from "lucide-react"
+import { useState, useEffect } from 'react'
+import { ArrowLeft, ArrowRight, ChevronRight, Share2, Heart, Star, CircleAlert, CheckCircle2, Clock, Shield, Truck, DollarSign, Maximize } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom';
+import TermsAndConditions from '../legal/terms&conditions';
+import API_BASE_URL from '../config/apiConfig';
 
 export default function RentCarDetails() {
-    const [currentImageIndex, setCurrentImageIndex] = useState(0)
-    const [rentalPeriod, setRentalPeriod] = useState('daily')
-    const [startDate, setStartDate] = useState('')
-    const [endDate, setEndDate] = useState('')
+    const { id } = useParams();
+    const [car, setCar] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [rentalPeriod, setRentalPeriod] = useState('daily');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [isWishlisted, setIsWishlisted] = useState(false);
+    const [isTermsOpen, setIsTermsOpen] = useState(false);
+    const [showBreakdown, setShowBreakdown] = useState(false);
 
-    const carImages = [
-        '/placeholder.svg',
-        '/placeholder.svg',
-        '/placeholder.svg',
-        '/placeholder.svg',
-        '/placeholder.svg'
-    ]
+    const [selectedAddOns, setSelectedAddOns] = useState({
+        insurance: false,
+        gps: false,
+        childSeat: false,
+    });
 
-    const nextImage = () => {
-        setCurrentImageIndex((prevIndex) => (prevIndex + 1) % carImages.length)
-    }
+    const addOnPrices = {
+        insurance: 15,
+        gps: 5,
+        childSeat: 7,
+    };
 
-    const prevImage = () => {
-        setCurrentImageIndex((prevIndex) => (prevIndex - 1 + carImages.length) % carImages.length)
-    }
+    const [rentalRates, setRentalRates] = useState({
+        daily: 0,
+        weekly: 0,
+        monthly: 0
+    });
 
-    const rentalRates = {
-        daily: 59,
-        weekly: 350,
-        monthly: 1200
-    }
+    const toggleBreakdown = () => {
+        setShowBreakdown(!showBreakdown);
+    };
+
+    useEffect(() => {
+        const fetchCarDetails = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/listings/listings/${id}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                if (!data) throw new Error('No data received');
+
+                const transformedCar = {
+                    id: data.listing_id,
+                    make: data.make || 'NA',
+                    model: data.model || 'NA',
+                    year: data.year || new Date().getFullYear(),
+                    mileage: data.mileage || 0,
+                    carType: data.carType || 'NA',
+                    images: data.images && data.images.length > 0
+                        ? data.images.map(image => `${API_BASE_URL}${image.url}`)
+                        : ['/placeholder-car-image.jpg'],
+                    engine: data.engine || 'NA',
+                    transmission: data.transmission || 'NA',
+                    fuelType: data.fuelType || 'NA',
+                    seatingCapacity: data.seatingCapacity || 'NA',
+                    exteriorColor: data.exteriorColor || 'NA',
+                    interiorColor: data.interiorColor || 'NA',
+                    extraFeatures: data.extraFeatures || {},
+                    price: data.price?.$numberDecimal ? parseFloat(data.price.$numberDecimal) : 0,
+                    location: data.location || 'NA',
+                    extraFeatures: {
+                        gps: data.extraFeatures?.gps || false,
+                        sunroof: data.extraFeatures?.sunroof || false,
+                        leatherSeats: data.extraFeatures?.leatherSeats || false,
+                        backupCamera: data.extraFeatures?.backupCamera || false,
+                    }
+                };
+
+                setCar(transformedCar);
+                setRentalRates({
+                    daily: Math.round(transformedCar.price),
+                    weekly: Math.round(transformedCar.price * 7),
+                    monthly: Math.round(transformedCar.price * 30)
+                });
+                setLoading(false);
+            } catch (err) {
+                setError(err.message);
+                setLoading(false);
+            }
+        };
+
+        fetchCarDetails();
+    }, [id]);
 
     const calculateTotalPrice = () => {
-        if (!startDate || !endDate) return 0
-        const start = new Date(startDate)
-        const end = new Date(endDate)
-        const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
-        if (rentalPeriod === 'daily') return days * rentalRates.daily
-        if (rentalPeriod === 'weekly') return Math.ceil(days / 7) * rentalRates.weekly
-        if (rentalPeriod === 'monthly') return Math.ceil(days / 30) * rentalRates.monthly
-    }
+        if (!startDate || !endDate) return 0;
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        if (days <= 0) return 0;
+
+        let basePrice = 0;
+        if (rentalPeriod === 'daily') basePrice = days * rentalRates.daily;
+        if (rentalPeriod === 'weekly') basePrice = Math.ceil(days / 7) * rentalRates.weekly;
+        if (rentalPeriod === 'monthly') basePrice = Math.ceil(days / 30) * rentalRates.monthly;
+
+        const addOnsCost = Object.entries(selectedAddOns)
+            .filter(([_, value]) => value)
+            .reduce((total, [key]) => total + addOnPrices[key] * days, 0);
+
+        return basePrice + addOnsCost;
+    };
+
+    if (loading) return (
+        <div className="flex justify-center items-center min-h-screen">
+            <p>Loading car details...</p>
+        </div>
+    );
+
+    if (error) return (
+        <div className="flex justify-center items-center min-h-screen text-red-500">
+            <p>Error: {error}</p>
+        </div>
+    );
+
+    if (!car) return (
+        <div className="flex justify-center items-center min-h-screen">
+            <p>Car not found</p>
+        </div>
+    );
+
+    const handleShare = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: document.title,
+                url: window.location.href,
+            }).catch((error) => console.error("Error sharing:", error));
+        } else {
+            // Fallback for browsers that do not support the Share API
+            const shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(document.title)}`;
+            window.open(shareUrl, '_blank');
+        }
+    };
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <header className="bg-white shadow">
-                <div className="container mx-auto px-4 py-6">
-                    <nav className="text-sm breadcrumbs">
-                        <ul className="flex items-center space-x-2">
-                            <li><a href="#" className="text-gray-500 hover:text-gray-700">Home</a></li>
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                            <li><a href="#" className="text-gray-500 hover:text-gray-700">Rent Car</a></li>
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                            <li><a href="#" className="text-gray-500 hover:text-gray-700">Toyota</a></li>
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                            <li className="text-gray-900 font-medium">Camry</li>
-                        </ul>
+        <div className="min-h-screen bg-background dark:bg-gray-900 flex justify-center">
+            <main className="container max-w-[88%] px-4 py-8">
+                <div className="flex justify-between items-center mb-4">
+                    <nav className="flex text-sm text-gray-600 dark:text-gray-400" aria-label="Breadcrumb">
+                        <ol className="inline-flex items-center space-x-1 md:space-x-3">
+                            <li className="inline-flex items-center">
+                                <Link to="/" className="hover:text-gray-900 dark:hover:text-gray-200">Home</Link>
+                            </li>
+                            <ChevronRight className="w-4 h-4 mx-1" />
+                            <li className="inline-flex items-center">
+                                <Link to="/rent" className="hover:text-gray-900 dark:hover:text-gray-200">Rent</Link>
+                            </li>
+                            <ChevronRight className="w-4 h-4 mx-1" />
+                            <li><span className="text-gray-400 dark:text-gray-500">{car.make}</span></li>
+                            <ChevronRight className="w-4 h-4 mx-1" />
+                            <li><span className="text-black dark:text-gray-100 font-semibold">{car.model}</span></li>
+                        </ol>
                     </nav>
-                    <h1 className="text-3xl font-bold text-gray-800 mt-4">2021 Toyota Camry LE</h1>
                 </div>
-            </header>
 
-            <main className="container mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="md:col-span-2">
-                        {/* Image Gallery */}
-                        <div className="relative bg-white rounded-lg shadow-lg overflow-hidden">
-                            <img
-                                src={carImages[currentImageIndex]}
-                                alt={`Car Image ${currentImageIndex + 1}`}
-                                className="w-full h-96 object-cover"
-                            />
-                            <button
-                                onClick={prevImage}
-                                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full"
-                            >
-                                <ArrowLeft className="w-6 h-6" />
-                            </button>
-                            <button
-                                onClick={nextImage}
-                                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full"
-                            >
-                                <ArrowRight className="w-6 h-6" />
-                            </button>
-                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                                {carImages.map((_, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => setCurrentImageIndex(index)}
-                                        className={`w-3 h-3 rounded-full ${index === currentImageIndex ? 'bg-white' : 'bg-gray-400'
-                                            }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Thumbnail Gallery */}
-                        <div className="mt-4 flex space-x-2 overflow-x-auto">
-                            {carImages.map((image, index) => (
+                <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden animate-fade-in">
+                    <div className="p-8 space-y-12">
+                        <div className="flex justify-between items-center">
+                            <h1 className="text-5xl font-bold text-primary dark:text-gray-100">
+                                {car.year} {car.make} {car.model}
+                            </h1>
+                            <div className="flex space-x-4">
                                 <button
-                                    key={index}
-                                    onClick={() => setCurrentImageIndex(index)}
-                                    className={`flex-shrink-0 ${index === currentImageIndex ? 'ring-2 ring-blue-500' : ''
-                                        }`}
+                                    onClick={() => setIsWishlisted(!isWishlisted)}
+                                    className="text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition duration-300 transform hover:scale-110"
                                 >
-                                    <img src={image} alt={`Thumbnail ${index + 1}`} className="w-20 h-20 object-cover rounded" />
+                                    <Heart className={`w-8 h-8 ${isWishlisted ? 'text-red-500 fill-current' : ''}`} />
                                 </button>
-                            ))}
-                        </div>
-
-                        {/* Vehicle Specifications */}
-                        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-                            <h2 className="text-2xl font-semibold mb-4">Vehicle Specifications</h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <h3 className="font-medium">Make</h3>
-                                    <p>Toyota</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Model</h3>
-                                    <p>Camry</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Year</h3>
-                                    <p>2021</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Transmission</h3>
-                                    <p>Automatic</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Fuel Type</h3>
-                                    <p>Gasoline</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Seating Capacity</h3>
-                                    <p>5 passengers</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Exterior Color</h3>
-                                    <p>Midnight Black Metallic</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Interior Color</h3>
-                                    <p>Black</p>
-                                </div>
-                            </div>
-                            <div className="mt-4">
-                                <h3 className="font-medium">Additional Features</h3>
-                                <ul className="list-disc list-inside mt-2">
-                                    <li>GPS Navigation System</li>
-                                    <li>Bluetooth Connectivity</li>
-                                    <li>Backup Camera</li>
-                                    <li>Apple CarPlay & Android Auto</li>
-                                    <li>Adaptive Cruise Control</li>
-                                </ul>
+                                <button className="text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition duration-300 transform hover:scale-110" onClick={handleShare}>
+                                    <Share2 className="w-8 h-8" />
+                                </button>
                             </div>
                         </div>
 
-                        {/* Vehicle Condition and Details */}
-                        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-                            <h2 className="text-2xl font-semibold mb-4">Vehicle Condition</h2>
-                            <p className="text-gray-700 mb-4">
-                                This 2021 Toyota Camry LE is in excellent condition and regularly maintained. It has undergone a thorough inspection and detailing process to ensure a high-quality rental experience.
-                            </p>
-                            <ul className="list-disc list-inside text-gray-700">
-                                <li>Last serviced: 1 month ago</li>
-                                <li>Tires replaced: 6 months ago</li>
-                                <li>Interior deep cleaned: Before each rental</li>
-                                <li>No accident history</li>
-                                <li>Non-smoking vehicle</li>
-                            </ul>
-                        </div>
-
-                        {/* Rental Terms and Conditions */}
-                        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-                            <h2 className="text-2xl font-semibold mb-4">Rental Terms and Conditions</h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="font-medium">Mileage Policy</h3>
-                                    <p>150 miles per day included. $0.25 per additional mile.</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Fuel Policy</h3>
-                                    <p>Return the car with the same amount of fuel as at pickup.</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Cleanliness</h3>
-                                    <p>Please return the car in the same condition as received. A cleaning fee may apply if excessive cleaning is required.</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Late Returns</h3>
-                                    <p>A grace period of 29 minutes is allowed for returns. Late returns may incur additional hourly or daily charges.</p>
-                                </div>
-                                <div>
-                                    <h3 className="font-medium">Cancellation Policy</h3>
-                                    <p>Free cancellation up to 24 hours before pickup. Cancellations within 24 hours of pickup may be subject to a fee.</p>
+                        <div className="space-y-4 justify-center">
+                            <div className="flex justify-center items-center" style={{ width: '100%' }}>
+                                <div className="relative aspect-video rounded-3xl overflow-hidden" style={{ width: 'calc(100% - 100px)', padding: '10px' }}>
+                                    <div className="relative w-full h-full">
+                                        <img
+                                            alt={`${car.make} ${car.model}`}
+                                            src={car.images[currentImageIndex]}
+                                            className="absolute inset-0 w-full h-full object-contain rounded-2xl"
+                                        />
+                                        {car.images.length > 1 && (
+                                            <>
+                                                <button
+                                                    onClick={() => setCurrentImageIndex((prev) => (prev - 1 + car.images.length) % car.images.length)}
+                                                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition duration-300"
+                                                >
+                                                    <ArrowLeft className="w-6 h-6" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setCurrentImageIndex((prev) => (prev + 1) % car.images.length)}
+                                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition duration-300"
+                                                >
+                                                    <ArrowRight className="w-6 h-6" />
+                                                </button>
+                                            </>
+                                        )}
+                                        {/* <button className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition duration-300">
+                                            <Maximize className="w-6 h-6" />
+                                        </button> */}
+                                    </div>
                                 </div>
                             </div>
-                            <button className="mt-4 text-blue-600 hover:underline">View Full Terms and Conditions</button>
-                        </div>
-
-                        {/* Customer Reviews */}
-                        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-                            <h2 className="text-2xl font-semibold mb-4">Customer Reviews</h2>
-                            <div className="flex items-center mb-4">
-                                <div className="flex items-center">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <Star key={star} className="w-5 h-5 text-yellow-400" fill="currentColor" />
+                            <div className="flex justify-center">
+                                <div className="grid grid-cols-4 gap-4" style={{ width: '80%', maxWidth: '600px' }}>
+                                    {car.images.slice(0, 4).map((image, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setCurrentImageIndex(index)}
+                                            className={`relative aspect-video rounded-xl overflow-hidden transition duration-300 ${index === currentImageIndex ? 'ring-4 ring-primary dark:ring-primary-dark' : 'hover:opacity-75'
+                                                }`}
+                                            style={{ width: 'calc(100% - 10px)', height: 'calc(100% - 10px)' }}
+                                        >
+                                            <img
+                                                alt={`Car thumbnail ${index + 1}`}
+                                                src={image}
+                                                className="absolute inset-0 w-full h-full object-contain"
+                                            />
+                                        </button>
                                     ))}
                                 </div>
-                                <span className="ml-2 text-gray-600">4.8 out of 5 (based on 47 reviews)</span>
                             </div>
-                            <div className="space-y-4">
-                                <div className="border-b pb-4">
-                                    <div className="flex items-center mb-2">
-                                        <div className="flex items-center">
-                                            {[1, 2, 3, 4, 5].map((star) => (
-                                                <Star key={star} className="w-4 h-4 text-yellow-400" fill="currentColor" />
-                                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                            <div className="lg:col-span-2 space-y-12">
+                                <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl p-8">
+                                    <h2 className="text-3xl font-bold mb-6 text-primary dark:text-gray-100">Vehicle Specifications</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {[
+                                            { label: 'Make', value: car.make },
+                                            { label: 'Model', value: car.model },
+                                            { label: 'Year', value: car.year },
+                                            { label: 'Location', value: car.location },
+                                            { label: 'Mileage', value: `${car.mileage.toLocaleString()} miles` },
+                                            { label: 'Engine', value: car.engine },
+                                            { label: 'Transmission', value: car.transmission },
+                                            { label: 'Fuel Type', value: car.fuelType },
+                                            { label: 'Seating Capacity', value: car.seatingCapacity },
+                                            { label: 'Exterior Color', value: car.exteriorColor },
+                                            { label: 'Interior Color', value: car.interiorColor },
+                                            { label: 'Car Type', value: car.carType },
+                                        ].map((spec, index) => (
+                                            <div key={index} className="flex flex-col">
+                                                <span className="text-sm text-gray-500 dark:text-gray-400 mb-1">{spec.label}</span>
+                                                <span className="font-medium text-lg dark:text-gray-200">{spec.value}</span>
+                                            </div>
+                                        ))}
+                                        {car.extraFeatures && (
+                                            <div className="mt-4">
+                                                <span className="text-sm text-gray-500 dark:text-gray-400 mb-1">Extra Features:</span>
+                                                <ul className="list-disc list-inside">
+                                                    {Object.entries(car.extraFeatures)
+                                                        .filter(([_, value]) => value) // Only include features that are true
+                                                        .map(([key]) => (
+                                                            <li key={key} className="font-medium text-lg dark:text-gray-200">
+                                                                {key
+                                                                    .replace(/([A-Z])/g, ' $1') // Convert camelCase to Title Case
+                                                                    .replace(/^./, str => str.toUpperCase())} {/* Capitalize the first letter */}
+                                                            </li>
+                                                        ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl p-8">
+                                    <h2 className="text-3xl font-bold mb-6 text-primary dark:text-gray-100">Vehicle Condition</h2>
+                                    <div className="space-y-6 text-lg mb-2">
+                                        <p className="text-gray-700 mb-4 dark:text-gray-100">
+                                            This {car.year} {car.make} {car.model} is in excellent condition and regularly maintained. It has undergone a thorough inspection and detailing process to ensure a high-quality rental experience.
+                                        </p>
+                                        <ul className="list-disc list-inside text-gray-700 dark:text-gray-100">
+                                            <li>Last serviced: 1 month ago</li>
+                                            <li>Tires replaced: 6 months ago</li>
+                                            <li>Interior deep cleaned: Before each rental</li>
+                                            <li>No accident history</li>
+                                            <li>Non-smoking vehicle</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl p-8">
+                                    <h2 className="text-3xl font-bold mb-6 text-primary dark:text-gray-100">Rental Terms</h2>
+                                    <div className="space-y-4 dark:text-gray-100">
+                                        <div>
+                                            <h3 className="font-medium text-lg mb-2">Mileage Policy</h3>
+                                            <p className="text-gray-600 dark:text-gray-300">150 miles per day included. ₹0.25 per additional mile.</p>
                                         </div>
-                                        <span className="ml-2 text-sm text-gray-600">John D. - Rented for 3 days</span>
-                                    </div>
-                                    <p className="text-gray-700">Great car! Very clean and well-maintained. The pickup and drop-off process was smooth. Would definitely rent again.</p>
-                                </div>
-                                <div className="border-b pb-4">
-                                    <div className="flex items-center mb-2">
-                                        <div className="flex items-center">
-                                            {[1, 2, 3, 4].map((star) => (
-                                                <Star key={star} className="w-4 h-4 text-yellow-400" fill="currentColor" />
-                                            ))}
-                                            <Star className="w-4 h-4 text-gray-300" />
+                                        <div>
+                                            <h3 className="font-medium text-lg mb-2">Fuel Policy</h3>
+                                            <p className="text-gray-600 dark:text-gray-300">Return with same fuel level as pickup.</p>
                                         </div>
-                                        <span className="ml-2 text-sm text-gray-600">Sarah M. - Rented for 1 week</span>
-                                    </div>
-                                    <p className="text-gray-700">The car was comfortable for our family trip. Fuel efficiency was great. Only minor issue was a slight delay at pickup.</p>
-                                </div>
-                            </div>
-                            <button className="mt-4 text-blue-600 hover:underline">Read all reviews</button>
-                        </div>
-                    </div>
-
-                    <div className="md:col-span-1">
-                        {/* Key Rental Information */}
-                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-3xl font-bold">${rentalRates[rentalPeriod]}</h2>
-                                <span className="text-gray-600">per {rentalPeriod.slice(0, -2)}</span>
-                            </div>
-                            <div className="flex justify-between items-center mb-4">
-                                <span className="text-green-600 font-semibold">Available</span>
-                                <button className="text-red-500 hover:text-red-600">
-                                    <Heart className="w-6 h-6" />
-                                </button>
-                            </div>
-                            <div className="space-y-4">
-                                <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300">
-                                    Book Now
-                                </button>
-                                <button className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-300">
-                                    Check Availability
-                                </button>
-                            </div>
-                            <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
-                                <span>Share this car:</span>
-                                <div className="flex space-x-2">
-                                    <button className="hover:text-blue-600">
-                                        <Facebook className="w-5 h-5" />
-                                    </button>
-                                    <button className="hover:text-blue-400">
-                                        <Twitter className="w-5 h-5" />
-                                    </button>
-                                    <button className="hover:text-green-600">
-                                        <Share2 className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Rental Pricing Breakdown */}
-                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Rental Pricing</h3>
-                            <div className="space-y-2 mb-4">
-                                <div className="flex justify-between">
-                                    <span>Daily Rate:</span>
-                                    <span>${rentalRates.daily}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Weekly Rate:</span>
-                                    <span>${rentalRates.weekly}</span>
-
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Monthly Rate:</span>
-                                    <span>${rentalRates.monthly}</span>
-                                </div>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700">Rental Period</label>
-                                <select
-                                    value={rentalPeriod}
-                                    onChange={(e) => setRentalPeriod(e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                >
-                                    <option value="daily">Daily</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="monthly">Monthly</option>
-                                </select>
-                            </div>
-                            <div className="space-y-2 text-sm">
-                                <p>Mileage: 150 miles/day included</p>
-                                <p>Additional miles: $0.25/mile</p>
-                            </div>
-                            <div className="mt-4">
-                                <h4 className="font-medium mb-2">Add-ons</h4>
-                                <div className="space-y-2">
-                                    <label className="flex items-center">
-                                        <input type="checkbox" className="form-checkbox" />
-                                        <span className="ml-2">Insurance ($15/day)</span>
-                                    </label>
-                                    <label className="flex items-center">
-                                        <input type="checkbox" className="form-checkbox" />
-                                        <span className="ml-2">GPS ($5/day)</span>
-                                    </label>
-                                    <label className="flex items-center">
-                                        <input type="checkbox" className="form-checkbox" />
-                                        <span className="ml-2">Child Seat ($7/day)</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Booking Form */}
-                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Book Your Rental</h3>
-                            <form>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label htmlFor="pickup-date" className="block text-sm font-medium text-gray-700">Pick-up Date</label>
-                                        <input
-                                            type="date"
-                                            id="pickup-date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="return-date" className="block text-sm font-medium text-gray-700">Return Date</label>
-                                        <input
-                                            type="date"
-                                            id="return-date"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="pickup-location" className="block text-sm font-medium text-gray-700">Pick-up Location</label>
-                                        <select
-                                            id="pickup-location"
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                        <div>
+                                            <h3 className="font-medium text-lg mb-2">Insurance</h3>
+                                            <p className="text-gray-600 dark:text-gray-300">Basic insurance included. Additional coverage available.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsTermsOpen(true)}
+                                            className="text-primary hover:underline dark:text-white"
                                         >
-                                            <option>Downtown Office</option>
-                                            <option>Airport Location</option>
-                                            <option>Suburban Branch</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="return-location" className="block text-sm font-medium text-gray-700">Return Location</label>
-                                        <select
-                                            id="return-location"
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                        >
-                                            <option>Same as pick-up</option>
-                                            <option>Downtown Office</option>
-                                            <option>Airport Location</option>
-                                            <option>Suburban Branch</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="mt-6">
-                                    <h4 className="font-medium mb-2">Estimated Total</h4>
-                                    <p className="text-2xl font-bold">${calculateTotalPrice()}</p>
-                                    <p className="text-sm text-gray-600">Final price may vary based on add-ons and actual rental duration</p>
-                                </div>
-                                <button type="submit" className="mt-4 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300">
-                                    Reserve Now
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Similar Cars for Rent */}
-                <div className="mt-12">
-                    <h2 className="text-2xl font-semibold mb-6">Similar Cars for Rent</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {[1, 2, 3].map((car) => (
-                            <div key={car} className="bg-white rounded-lg shadow-lg overflow-hidden">
-                                <img src="/placeholder.svg" alt={`Similar Car ${car}`} className="w-full h-48 object-cover" />
-                                <div className="p-4">
-                                    <h3 className="font-semibold text-lg mb-2">2022 Honda Accord LX</h3>
-                                    <p className="text-gray-600 mb-2">$65/day</p>
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center">
-                                            <Star className="w-4 h-4 text-yellow-400" fill="currentColor" />
-                                            <span className="ml-1 text-sm text-gray-600">4.7 (52 reviews)</span>
-                                        </div>
-                                        <button className="bg-blue-600 text-white py-1 px-3 rounded-md hover:bg-blue-700 transition duration-300">
-                                            View Details
+                                            View Full Terms and Conditions
                                         </button>
                                     </div>
                                 </div>
+                                {/* Customer Reviews */}
+                                {/* will add in future */}
+                                <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl p-8">
+                                    <h2 className="text-2xl font-semibold mb-4">Customer Reviews</h2>
+                                    <div className="flex items-center mb-4">
+                                        <div className="flex items-center">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <Star key={star} className="w-5 h-5 text-yellow-400" fill="currentColor" />
+                                            ))}
+                                        </div>
+                                        <span className="ml-2 text-gray-600">4.8 out of 5 (based on 47 reviews)</span>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="border-b pb-4">
+                                            <div className="flex items-center mb-2">
+                                                <div className="flex items-center">
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <Star key={star} className="w-4 h-4 text-yellow-400" fill="currentColor" />
+                                                    ))}
+                                                </div>
+                                                <span className="ml-2 text-sm text-gray-600">John D. - Rented for 3 days</span>
+                                            </div>
+                                            <p className="text-gray-700">Great car! Very clean and well-maintained. The pickup and drop-off process was smooth. Would definitely rent again.</p>
+                                        </div>
+                                        <div className="border-b pb-4">
+                                            <div className="flex items-center mb-2">
+                                                <div className="flex items-center">
+                                                    {[1, 2, 3, 4].map((star) => (
+                                                        <Star key={star} className="w-4 h-4 text-yellow-400" fill="currentColor" />
+                                                    ))}
+                                                    <Star className="w-4 h-4 text-gray-300" />
+                                                </div>
+                                                <span className="ml-2 text-sm text-gray-600">Sarah M. - Rented for 1 week</span>
+                                            </div>
+                                            <p className="text-gray-700">The car was comfortable for our family trip. Fuel efficiency was great. Only minor issue was a slight delay at pickup.</p>
+                                        </div>
+                                    </div>
+                                    <button className="mt-4 text-blue-600 hover:underline">Read all reviews</button>
+                                </div>
                             </div>
-                        ))}
+
+                            <div className="space-y-8">
+                                <div className=' bg-gray-50 dark:bg-gray-700 rounded-3xl p-6'>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div>
+                                            <p className="text-4xl font-bold">₹{rentalRates[rentalPeriod]}</p>
+                                            <p className="text-sm text-gray-500">per {rentalPeriod}</p>
+                                        </div>
+                                        <div className="text-green-500 font-semibold">Available</div>
+                                    </div>
+
+                                    <button
+                                        onClick={toggleBreakdown}
+                                        className="text-lg font-bold text-primary dark:text-primary-dark underline mt-4"
+                                    >
+                                        {showBreakdown ? 'Hide Rental Pricing' : 'Show Rental Pricing'}
+                                    </button>
+                                    {showBreakdown && (
+                                        <div className="mt-4 text-base">
+                                            <p>
+                                                <strong>Daily Rate:</strong> ₹{car.price.toLocaleString()}
+                                            </p>
+                                            <p>
+                                                <strong>Weekly Rate:</strong> ₹{car.price * 7}
+                                            </p>
+                                            <p>
+                                                <strong>Monthly Rate:</strong> ₹{car.price * 30}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className=' bg-gray-50 dark:bg-gray-700 rounded-3xl p-6'>
+                                    <div className="space-y-4">
+                                        <div><br />
+                                            <label className="block text-sm font-medium mb-1">Rental Period</label>
+                                            <select
+                                                value={rentalPeriod}
+                                                onChange={(e) => setRentalPeriod(e.target.value)}
+                                                className="w-full p-2 border rounded-md"
+                                            >
+                                                <option value="daily">Daily</option>
+                                                <option value="weekly">Weekly</option>
+                                                <option value="monthly">Monthly</option>
+                                            </select>
+                                        </div><br />
+                                        <h3 className="text-lg font-semibold mb-4">Book Your Rental</h3>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Pick-up Date</label>
+                                            <input
+                                                type="date"
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)}
+                                                className="w-full p-2 border rounded-md"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Return Date</label>
+                                            <input
+                                                type="date"
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)}
+                                                className="w-full p-2 border rounded-md"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <h3 className="font-medium mb-2">Add-ons</h3>
+                                            {Object.entries(addOnPrices).map(([addon, price]) => (
+                                                <label key={addon} className="flex items-center space-x-2 mb-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedAddOns[addon]}
+                                                        onChange={() => setSelectedAddOns(prev => ({
+                                                            ...prev,
+                                                            [addon]: !prev[addon]
+                                                        }))}
+                                                        className="rounded border-gray-300"
+                                                    />
+                                                    <span>{addon.charAt(0).toUpperCase() + addon.slice(1)} (₹{price}/day)</span>
+                                                </label>
+                                            ))}
+                                        </div>
+
+                                        <div className="pt-4 border-t">
+                                            <div className="flex justify-between mb-2">
+                                                <span>Total Price:</span>
+                                                <span className="font-bold">₹{calculateTotalPrice()}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-500">Includes all selected add-ons</p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Link
+                                                to={`/payment/${car.id}`}
+                                                className="block w-full"
+                                            >
+                                                <button className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-primary/90 transition duration-300 flex items-center justify-center">
+                                                    <DollarSign className="w-5 h-5 mr-2" />
+                                                    Reserve Now
+                                                </button>
+                                            </Link>
+                                            <Link
+                                                to="/contactUs"
+                                                className="block w-full"
+                                            >
+                                                <button className="w-full bg-gray-100 text-secondary py-2 px-4 rounded-md hover:bg-secondary/20 transition duration-300">
+                                                    Contact Us
+                                                </button>
+                                            </Link>
+                                        </div>
+
+                                        <div className="pt-4 space-y-2">
+                                            <div className="flex items-center text-sm text-gray-600">
+                                                <Shield className="w-4 h-4 mr-2" />
+                                                <span>Free cancellation up to 24h before pickup</span>
+                                            </div>
+                                            <div className="flex items-center text-sm text-gray-600">
+                                                <Truck className="w-4 h-4 mr-2" />
+                                                <span>Free delivery within 50km</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
+            {isTermsOpen && <TermsAndConditions isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />}
         </div>
-    )
+    );
 }
+
